@@ -25,12 +25,18 @@ NGINX có một master process (được khởi tạo đầu tiên) làm các c�
 
 Cache manager và cache loader quản lý phần dữ liệu cache trên ổ đĩa. Còn toàn bộ các công việc chính khác được xử lý bỏi worker thread. 
 
+#### Bên trong một worker thread 
+
+![](../images/NGINX-worker.png)
+
 Worker thread được tạo ra và cung cấp sẵn một list các listent sockets từ master thread. Worker thread sau đó bắt đầu đợi các event trên các listen socket này. Các event này được khởi tạo từ những incoming connections. Với kiến trúc event-driven, NGINX implement một state machine để handle các event này.  
 
 ![](../images/NGINX-flow.png)
 
+    Phần lớn các webserver sử dụng kiến trúc thread-per-connection (cứ một request từ user, server sẽ tạo ra một thread mới để xử lý riêng cho request đó). Nhưng trong phần lớn thòi gian là thời gian thread đó bị 'blocked', nó đợi phản ứng tiếp theo của người dùng. Việc này gây tiêu tốn tài nguyên máy tính. Khi lượng truy cập tăng mạnh trong cùng một thời điểm, lượng thread đồng thời cũng tăng theo mà chi phí trên mỗi thread không hề nhỏ (về mặt bộ nhớ, thời gian và cpu), còn bị lãng phí (trong thời gian bị blocked).
 
-### Ưu điểm của kiến trúc 'single thread'
+#### Ưu điểm của kiến trúc 'single thread'
 
-### Nhược điểm của NGINX
+
+#### Nhược điểm của NGINX
 
