@@ -93,3 +93,51 @@ Tổng kết ta có performance cho implement trên như sau:
 | add new item | O(1)|
 | access item | O(1) |
 
+# Cài đặt NGINX để phục vụ cache
+
+File [run.sh](../src/02-cache/run.sh) config NGINX server thành một proxy trỏ tới web server, thêm caching, tạo ra file [httpserver.py](../src/02-cache/httpserver.py), run file [httpserver.py](../src/02-cache/httpserver.py) để tạo server phục vụ ở port 2222
+
+## Tạo python server
+
+Chạy file [httpserver.py](../src/02-cache/httpserver.py) bằng python3 sau đó vào trình duyệt kiểm tra được kết quả như sau:
+
+![](../images/server-vk-quoc-dan.png)
+
+## Cấu hình NGINX
+
+File /etc/nginx/sites-enabled/default có cấu hình như sau:
+
+    proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=myCache:8m max_size=100m inactive=1h;
+
+    server {
+        listen 80;
+        location / {
+            proxy_pass http://localhost:2222;
+            proxy_ignore_headers X-Accel-Expires Expires Cache-Control Set-Cookie;
+        proxy_cache myCache;
+            proxy_cache_valid any 60m;
+
+        }
+    }
+
+Sau khi cấu hình phải reload hoặc restart lại NGINX
+
+## Kết quả
+
+Vào port 80 của localhost thì được kết quả như sau:
+
+![](../images/proxy-vk-quoc-dan.png)
+
+Ở python server có dòng thông báo:
+
+![](../images/thong-bao-server.png)
+
+Python server thông báo có một request GET.
+
+Sau đó refresh lại trang nhiều lần nhưng có thêm thông báo từ python server nữa.
+
+Thử vào thư mục /var/cache/nginx thì thấy có vài thư mục con, mở một file bên trong thì nhận được kết quả như sau:
+
+![](../images/cache.png)
+
+Ta thấy có dấu hiệu của gói tin http từ python server.

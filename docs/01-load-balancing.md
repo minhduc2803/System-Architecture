@@ -7,6 +7,27 @@ Load balancing là quá trình phân phối lưu lượng mạng trên nhiều s
 ![](../images/Load-Balancer.jpg)
 
 Divice thực hiện load balancing được gọi là Load balancer. Load balancer thường nằm ngay 'cửa' giao tiếp của một hệ thống, tiếp nhận luồng thông tin từ bên ngoài (người dùng) và quyết định xem server nào của hệ thống sẽ xử lý phần thông tin đó.
+
+Load balancer tối ưu hóa việc sử dụng tài nguyên, băng thông, giảm độ trễ, tăng khả năng chịu lỗi.
+
+### Phân loại
+
+Load balancer gồm 2 loại chính: layer 4 và layer 7.
+
+- Layer 4 load balancer (hay L4 for short) hoạt động trên layer 4 của OSI model. Khi client request, tạo một kết nối TCP với L4, L4 sẽ dùng chính gói tin kết nối này (sửa lại IP và port) rồi kết nối với upstream server. Như vậy L4 chỉ đơn giản là chuyển tiếp gói dữ liệu mạng đến upstream server mà không kiểm tra nội dung gói dữ liệu.
+
+- Layer 7 load balancer (L7) hoạt động ở tầng 7 trong mô hình OSI. L7 đánh giá dữ liệu trên giao thức http để điều phối gói tin. 
+
+### Một số phương pháp load balancing
+
+- Random: Phân phối request ngẫu nhiên cho các server.
+
+- Round robin: Phân phối request lần lượt cho các server.
+
+- Weighted round robin: Giống như round robin nhưng tính thêm lượng trọng tải của mối server. ví dụ server 1 có thể xử lý gấp đối tải trọng so với server 2 nên request sẽ tới server 1 hai lần rồi mới tới server 2.
+
+- Least connections: Phân phối tới server có ít kết nối nhất hiện tại.
+
 ## 2. NGINX
 
 NGINX là một web server, có thể dùng như một reverse proxy, load balancer. NGINX được tạo ra bởi Igor Sysoev - một kỹ sư người Nga, phiên bản chính thức đầu tiên được release vào năm 2014.  
@@ -52,3 +73,47 @@ Trong khi đó, với kiến trúc one-thread-per-connection, mỗi kết nối 
 - Cộng đồng phát triển NGINX chưa đủ mạnh.
 - Hỗ trợ rất tốt static content nhưng NGINX không thể xử lý dynamic content một cách 'native' mà cần thông qua các giao thức khác như fastCGI.
 - Không có nhiều modules/extentions hỗ trợ.
+
+# Coding
+
+File [run.sh](../src/01-load-balancing/run.sh) sẽ tự động cấu hình NGINX thành một Load balancer listen tại port 80. Sau đó tự động tạo file [httpserver.py](../src/01-load-balancing/httpserver.py), tiếp tục thực thi file này thì được một web python server trên 2 port 1111 và 2222. Load balancer sau đó cân bằng tải trên 2 port này.
+
+## 1. & 2. Làm một web tĩnh đơn giản bằng python rồi cho chạy trên 2 port khác nhau
+
+File [httpserver.py](../src/01-load-balancing/httpserver.py) tạo một web server đơn giản có 2 thread, một thread chính listen ở port 2222, thread con listen ở port 1111.
+
+Run file bằng lệnh 
+
+    python3 httpserver.py
+
+Kiểm tra lại bằng curl trên 2 port 1111 và 2222
+
+![](../images/curl-check-server.png)
+
+
+## 3. Cài đặt NGINX
+
+File /etc/nginx/sites-enabled/default có cấu hình như sau:
+
+    upstream web_backend {
+	server localhost:1111;
+	server localhost:2222;
+    }
+    server {
+        listen 80;
+        location / {
+            proxy_set_header X-Forwarded-For ;
+            proxy_pass http://web_backend;
+
+        }
+    }
+
+Sau khi thay đổi file default cần reload hoặc restart NGINX.
+
+    sudo systemctl reload nginx
+
+## Kết quả 
+
+Sau khi run file [run.sh](../src/01-load-balancing/run.sh) ta dùng curl kiểm tra trên port 80 sẽ thấy server trả về kết quả luân phiên giữa 2 port (do mặc định NGINX sẽ chạy load balancing theo thuật toán round-robin):
+
+![](../images/curl-check-balancer.png)
